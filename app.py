@@ -18,7 +18,7 @@ ORIGINAL_SPA_DATA = """💥SUWASTHA MOBILE SPA💥
 📌️අපගේ සේවාවන්
 🔺ප්‍රධාන සේවාව:- 
 🔸හිසේ සිට දෙපතුල දක්වා සම්භාහනය 
-🔺අනෙකුත් සේවාවන්:-
+🔺अනෙකුත් සේවාවන්:-
 🔸 හිස සදහා සම්භාහනය
 🔸 බෙල්ලේ මාංශපේෂි සම්භාහනය
 🔸 දෙඅත් සදහා සම්භාහනය
@@ -137,7 +137,7 @@ st.sidebar.markdown("### 🔑 System Integration")
 default_gemini_key = st.secrets.get("GEMINI_API_KEY", "")
 gemini_key_input = st.sidebar.text_input(
     "Gemini API Key", 
-    value=default_api_key if 'default_api_key' in locals() else default_gemini_key, 
+    value=default_gemini_key, 
     type="password",
     help="Enter Gemini API key or set it up in Streamlit Secrets."
 )
@@ -307,7 +307,8 @@ Guidelines:
 - End with exactly 15 highly viral, trending marketing hashtags related to beauty, wellness, massage, and spa.
 Do not output any instructions or markdown code blocks inside the response, just return the raw text."""
 
-                    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key={gemini_key_input}"
+                    # Using the stable, updated gemini-2.5-flash endpoint
+                    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key_input}"
                     gemini_payload = {
                         "contents": [{"parts": [{"text": ORIGINAL_SPA_DATA}]}],
                         "systemInstruction": {"parts": [{"text": system_prompt}]}
@@ -320,8 +321,8 @@ Do not output any instructions or markdown code blocks inside the response, just
                     polished_text = gemini_res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
                     add_log("Copywriting refinement successful.")
 
-                    # STEP 2: Imagen Graphics Generation
-                    add_log("Initiating cinematic asset rendering via Imagen 4...")
+                    # STEP 2: Gemini Native Image Generation (Nano Banana)
+                    add_log("Initiating customized image rendering via Gemini visual engine...")
                     
                     style_directions = ""
                     if art_slug == "cinematic":
@@ -333,17 +334,24 @@ Do not output any instructions or markdown code blocks inside the response, just
 
                     prompt_text = f"A beautiful background of: {style_directions}. Overlaid with sharp, legible, premium-looking graphic typographic text reading exactly '{overlay_text}' in the center. Advertising quality, 8k resolution, suitable for a luxurious brand banner."
 
-                    imagen_url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key={gemini_key_input}"
-                    imagen_payload = {
-                        "instances": {"prompt": prompt_text},
-                        "parameters": {"sampleCount": 1}
+                    # Using the stable native gemini-2.5-flash-image model endpoint
+                    image_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key={gemini_key_input}"
+                    image_payload = {
+                        "contents": [{"parts": [{"text": prompt_text}]}],
+                        "generationConfig": {
+                            "responseModalities": ["IMAGE"]
+                        }
                     }
                     
-                    imagen_res = requests.post(imagen_url, json=imagen_payload, timeout=45)
-                    if imagen_res.status_code != 200:
-                        raise Exception(f"Imagen API Error: {imagen_res.text}")
+                    image_res = requests.post(image_url, json=image_payload, timeout=45)
+                    image_res_json = image_res.json()
                     
-                    base64_raw = imagen_res.json()["predictions"][0]["bytesBase64Encoded"]
+                    if image_res.status_code != 200:
+                        raise Exception(f"Image API Error: {image_res.text}")
+                    if "error" in image_res_json:
+                        raise Exception(image_res_json["error"]["message"])
+                    
+                    base64_raw = image_res_json["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
                     base64_img = f"data:image/png;base64,{base64_raw}"
                     add_log("Graphic creation successful.")
 
